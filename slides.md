@@ -43,7 +43,7 @@ class: "text-center"
   <div class="pb-4">
     <h1><b>Antoine Coulon</b></h1>
     <div class="leading-8 mt-8 flex flex-col">
-      <p class="mt-3">Lead Software Engineer</p>
+      <p class="mt-3">Freelance Lead Software Engineer</p>
       <p class="mt-3">Author <b color="cyan">skott, effect-introduction</b></p>
       <p class="mt-3">Advocate <b color="cyan">Effect</b></p>
       <p class="mt-3">Contributor <b color="cyan">Rush.js, NodeSecure</b></p>
@@ -206,7 +206,7 @@ try {
 </div>
 
 <div class="text-center mt-5" v-click>
-<b>-> Same explicitness problem and different APIs</b>
+<b>→ Same explicitness problem and different APIs</b>
 </div>
 
 
@@ -278,18 +278,68 @@ type Main = Effect.Effect<number, never, never>;
 
 ## Resilience: more than just managing errors
 
-Now we have a proper way of managing errors:
-- filtering
-- recovering
-- retrying
-- mapping
-- pattern matching
 
-Effect also provides
-- Interruptions
-- Timeouts
-- Resource Management
-- Patterns: Circuit Breaker, etc.
+<div class="grid grid-cols-2 gap-x-4 pt-2">
+
+<div>
+
+**Retrying**
+
+```ts
+import { Effect, pipe, Schedule, Duration } from "effect";
+
+const schedulePolicy = pipe(
+  Schedule.recurs(5),
+  Schedule.addDelay(() => Duration.millis(500)),
+  Schedule.compose(Schedule.elapsed),
+  Schedule.whileOutput(
+    Duration.lessThanOrEqualTo(Duration.seconds(3))
+  ),
+  Schedule.whileInput(
+    (e) => e instanceof Error && e.message !== "_"
+  )
+);
+
+const programWithRetryPolicy = pipe(
+  Effect.failSync(() => new Error("Some_error")),
+  Effect.retry(schedulePolicy),
+  Effect.catchAll(() => Effect.sync(() => {
+    console.log("Program ended")
+  }))
+);
+```
+</div>
+
+<div v-click>
+
+**Resource-safe interruptions and timeouts**
+
+<div v-click>
+
+→ An Effect is interruptible by default
+<br>
+→ Interruptions are guaranteed to be propagated
+
+
+```ts
+import { Effect } from "effect";
+
+const task = Effect.gen(function* () {
+  console.log("Start processing...");
+  yield* Effect.sleep("2 seconds");
+  console.log("Processing complete.");
+  return "Result";
+});
+
+const timedEffect = task.pipe(Effect.timeout("1 second"));
+```
+</div>
+
+</div>
+
+
+</div>
+
 
 ---
 
@@ -333,21 +383,270 @@ const registerUser: Effect.Effect<CreatedUser, UserAlreadyExistsError, UserRepos
 ## Dependencies: type-safe dependency injection
 
 
+```ts {9-11|3,6-7|13-18|21} {lines:true}
+import { Effect, pipe } from "effect";
+
+const registerUser: Effect.Effect<
+  CreatedUser,
+  UserAlreadyExistsError,
+  UserRepository
+> = // whatever Effect there
+
+// ts(2345): Type 'UserRepository' is not assignable to type 'never'
+//             ^^^^^^^^^^^^
+Effect.runSync(registerUser);
+
+const registerUserWithSatisfiedDependencies: Effect<CreatedUser, UserAlreadyExistsError, never> = pipe(
+  registerUser,
+  Effect.provideService(UserRepository, {
+    createUser: () => Effect.succeed(new CreatedUser()),
+  })
+);
+
+// compiles and works
+Effect.runSync(registerUserWithSatisfiedDependencies);
+```
+
 ---
 
-## Concurrency
+## Dependencies: seemless testing
+
+> Dependency Inversion Principle makes testing easy
+
+```ts {1-5|8,12|all} {lines:true}
+class InMemoryUserRepository implements UserRepository {
+  createUser() {
+    //
+  }
+}
+
+test("Should blabla", async () => {
+  const fakeRepository = new InMemoryUserRepository();
+
+  const user = await pipe(
+    createUser(), 
+    Effect.provideService(UserRepository, fakeRepository),
+    Effect.runPromise
+  );
+
+  expect(user).toEqual("whatever");
+});
+```
+
+---
+
+
+## Concurrency: properly managing concurrency is **complex**
+
+> "concurrency is about dealing with lots of things at once", Rob Pike
+
+<br>
+
+- Difficult to achieve a deterministic execution model
+- Issues with shared resources and resource management
+- Deadlocks, race conditions
+- Memory and CPU control and efficiency
+
+<br>
+
+Node.js and the Event Loop model solve many concurrency issues... but some are still left
 
 
 ---
 
+## Concurrency: bounded vs unbounded
+
+<div class="grid grid-cols-2 gap-x-4 pt-5">
+
+<div v-click>
+
+**Promise**
+
+```ts
+const userIds = Array.from(
+  { length: 1000 }, (_, idx) => idx
+);
+
+function fetchUser(id: number): Promise<User> {}
+
+// UNBOUNDED 
+function retrieveAllUsers() {
+  return Promise.all(userIds.map(fetchUser));
+}
+```
+
+- No interruption handling
+- No guarantee on resource release
+- No control over concurrent execution
+- `Promise#allSettled` provides finer control over the produced result but suffers from the same issues
+
+</div>
+
+<div v-click>
+
+**Effect**
+
+```ts
+const userIds = Array.from(
+  { length: 1000 }, (_, idx) => idx
+);
+
+// 
+const retrieveAllUsers = pipe( 
+  userIds,
+  Effect.forEach(
+    (id) => Effect.promise(() => fetchUser(id)), 
+    // BOUNDED
+    { concurrency: 30 },
+    // OR UNBOUNDED
+    { concurrency: "unbounded" },
+    // OR INHERITED
+    { concurrency: "inherit" }
+  )
+);
+```
+
+</div>
+
+</div>
+
+---
+
+## Resource Management
+
+- Proposal "Explicit Resource Management", mais généralisé et plus composable
+- Introduction de Scopes, dès lors qu'on a plus besoin des ressources, des finalizers sont appelés
+- Finalizers appelés dès lors qu'une interruption/erreur d'un Effect est produite
+- Contexte qui contrôle la propagation des scopes, on évite le "props drilling" des Abort Signals 
+- Libération Sync/Async, peut être elle-même rendue interruptible/non-interruptible
+
+---
 
 ## Resource Management
 
 
---- 
+<div class="grid grid-cols-2 gap-x-4 pt-5">
 
-## Observability
+<div>
 
+```ts
+import { setTimeout } from "node:timers/promises";
+
+const leakingRace = () => Promise.race([
+  setTimeout(1000), 
+  setTimeout(10000)
+]);
+
+function raceWithInterruptions() {
+  const abortController1 = new AbortController();
+  const abortController2 = new AbortController();
+
+  async function cancellableTimeout1() {
+    await setTimeout(1000, undefined, { signal: abortController1.signal });
+    abortController2.abort();
+  }
+
+  async function cancellableTimeout2() {
+    await setTimeout(10000, undefined, { signal: abortController2.signal });
+    abortController1.abort();
+  }
+
+  return Promise.race([cancellableTimeout1(), cancellableTimeout2()]);
+}
+```
+</div>
+
+<div v-click>
+
+```ts
+import { Effect } from "effect";
+
+const race = Effect.raceAll([
+  Effect.sleep(1000),
+  Effect.sleep(10_000).pipe(
+    Effect.onInterrupt(() => Effect.log("interrupted"))
+  ),
+]);
+```
+
+<br>
+
+
+```ts
+// React useEffect-like release function
+const backgroundJob = Effect.async(() => {
+  const timer = setInterval(() => {
+    console.log("processing job...");
+  }, 500);
+
+  return Effect.sync(() => {
+    console.log("releasing resources...");
+    clearInterval(timer);
+  });
+});
+```
+
+
+</div>
+
+
+</div>
+
+---
+
+## Observability: built-in Logging, Tracing, Metrics
+
+<div class="grid grid-cols-2 gap-x-4 pt-5">
+
+<div>
+
+
+```ts
+const getTodo = (
+  id: number
+): Effect.Effect<
+  unknown,
+  HttpClientError | TimeoutException
+> =>
+  httpClient.get(`/todos/${id}`).pipe(
+    Effect.andThen((response) => response.json),
+    Effect.andThen(S.decode(Todo)),
+    Effect.timeout("1 second"),
+    Effect.retry({
+      schedule: Schedule.exponential(1000),
+      times: 3
+    }),
+    Effect.withSpan("getTodo", { attributes: { id } })
+  )
+```
+
+</div>
+
+<div>
+
+```ts
+
+const child = Effect.void.pipe(
+  Effect.delay("100 millis"),
+  Effect.withSpan("child")
+)
+
+const parent = Effect.gen(function* () {
+  yield* Effect.sleep("20 millis")
+  yield* child
+  yield* Effect.sleep("10 millis")
+}).pipe(Effect.withSpan("parent"))
+```
+
+```ts
+
+
+```
+
+
+</div>
+
+</div>
 ---
 
 ## Effect offers a wide but unified and composable ecosystem
