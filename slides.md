@@ -514,16 +514,6 @@ const retrieveAllUsers = pipe(
 
 ## Resource Management
 
-- Proposal "Explicit Resource Management", mais généralisé et plus composable
-- Introduction de Scopes, dès lors qu'on a plus besoin des ressources, des finalizers sont appelés
-- Finalizers appelés dès lors qu'une interruption/erreur d'un Effect est produite
-- Contexte qui contrôle la propagation des scopes, on évite le "props drilling" des Abort Signals 
-- Libération Sync/Async, peut être elle-même rendue interruptible/non-interruptible
-
----
-
-## Resource Management
-
 
 <div class="grid grid-cols-2 gap-x-4 pt-5">
 
@@ -593,6 +583,16 @@ const backgroundJob = Effect.async(() => {
 </div>
 
 ---
+
+## Resource Management
+
+- Proposal "Explicit Resource Management", mais généralisé et plus composable
+- Introduction de Scopes, dès lors qu'on a plus besoin des ressources, des finalizers sont appelés
+- Finalizers appelés dès lors qu'une interruption/erreur d'un Effect est produite
+- Contexte qui contrôle la propagation des scopes, on évite le "props drilling" des Abort Signals 
+- Libération Sync/Async, peut être elle-même rendue interruptible/non-interruptible
+
+--- 
 
 ## Observability: built-in Logging, Tracing, Metrics
 
