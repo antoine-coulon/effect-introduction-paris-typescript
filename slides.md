@@ -161,7 +161,7 @@ const createUser: Effect.Effect<
 
 ---
 
-## Resilience: **error management**
+## Resilience: error management
 
 <br>
 
@@ -214,13 +214,15 @@ try {
 </div>
 
 <div class="text-center mt-5" v-click>
+<b>→ End up using defensive programming "just in case"</b>
+<br>
 <b>→ Same explicitness problem and different APIs</b>
 </div>
 
 
 ---
 
-## Resilience: **error management**
+## Resilience: error management
 
 > Re-creating information that we had... but lost during the process
 
@@ -253,7 +255,7 @@ try {
 
 ---
 
-## Resilience: **error management** with Effect
+## Resilience: error management with Effect
 
 > Introducing Error as Values
 
@@ -390,8 +392,9 @@ const registerUser: Effect.Effect<CreatedUser, UserAlreadyExistsError, UserRepos
 
 ## Dependencies: type-safe dependency injection
 
+<br>
 
-```ts {1,9-11|3,6-7|13-18|20-21} {lines:true}
+```ts {1,9-11|3,6-7|13-18|13,20-21} {lines:true}
 import { Effect, pipe } from "effect";
 
 const registerUser: Effect.Effect<
@@ -599,30 +602,7 @@ const backgroundJob = Effect.async(() => {
 - Scopes offer handle with built-in acquisition and release logic with strong guarantees
 - Finalizers are guaranteed to be run in case of Interruptions or Errors
 - No props drilling, everything nicely composes
-
-<div v-click>
-
-```ts
-import { Effect, Console } from "effect"
-
-// Define how the resource is acquired
-const acquire = Effect.tryPromise({
-  try: () => getResource(),
-  catch: () => new Error("getMyResourceError")
-})
-
-// Define how the resource is released
-const release = (res: MyResource) => Effect.promise(() => res.close())
-
-// Define how the resource is used
-const use = (res: MyResource) => Console.log(`content is ${res.contents}`)
-
-//      ┌─── Effect<void, Error, never>
-//      ▼
-const program = Effect.acquireUseRelease(acquire, use, release)
-```
-
-</div>
+- Interruptions are guaranteed to be propagated, following Structured Concurrency model
 
 
 --- 
@@ -715,10 +695,9 @@ const program = task("client", 2, [
 <div>
   <ul>
       <li v-click>It's a toolkit, you only pick what you need</li>
-      <li v-click>tree-shakeable </li>
+      <li v-click>tree-shakeable</li>
       <li v-click>micro module: lightweight subset of effect</li>
       <li v-click>good promise/callback/sync interop</li>
-      <li v-click>usable on both frontend and backend ecosystems</li>
   </ul>
 </div>
 
@@ -726,7 +705,7 @@ const program = task("client", 2, [
 
 ## Effect makes the hard things easy
 
-> A streamlined way of developing software with unified standard library and ecosystem
+> Tackle hard problems with low complexity overhead
 
 <div class="mt-5">
 

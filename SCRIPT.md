@@ -3,26 +3,27 @@
 Hello everyone, I hope you're having a great conference here in Paris!
 
 I believe I'm one of the only two french speakers today with Nicolas, and I'm proud of representing France and especially Paris.
-So as you might know, if you have any questions about Paris, really please don't ask them to me, as you know Parisian people don't like people asking questions.
 
+[JOKE to evaluate]
+So as you might know, if you have any questions about Paris, really please don't ask them to me, as you know Parisian people don't like people asking questions.
 Just joking...
 
 Alright today I'll talk about challenges we are facing when writing Production-Ready Software, and I will present you a library, Effect, which is one solution addressing these problems using TypeScript.
 
 Quick questions, is there some people who already heard about Effect? Who's using Effect in production?
 
-2) (30s) ✅
+2) (45s) ✅ 🚧 RACCOURCIR
 
-A small disclaimer regarding the talk: you won't be an Effect master after that talk and that's for a simple reason.
+A small disclaimer regarding the talk: you won't become an Effect master after that talk and that's for a simple reason.
 
 The goal of this talk is not to sell just a new solution like that, and by the way Effect is fully open-source so indeed there is nothing to sell, it's just I'm not fan of that approach. Instead what I propose you is to go through various kind of universal problems we face when writing programs, whatever the language or the ecosystem is, and see how Effect can become a great solution for these problems when using TypeScript.
 
 
-3) (45s) ⌛
+3) (45s) ✅ 🚧 RACCOURCIR
 
 Before diving into the talk, let me introduce myself first.
 
-My name is Antoine, I'm a Software Engineering Consultant, and my job is to help companies succeed using full-stack expertise.
+My name is Antoine, I'm a Software Engineering Consultant, currently working as a Freelance and my job is to help companies succeed using full-stack expertise.
 
 I have around 3 years of experience building Effect in production.
 
@@ -33,201 +34,237 @@ I'm also involved in Open-Source development:
 - I co-organize the Effect Paris meetup, which is btw one of the community partners of the conference
 
 
-4) (1mn30)
+4) (1mn30) ✅ 🚧 RACCOURCIR et changer peut être le format pour éviter le format calqué bullet point
 
-As I said in the introduction, we all face some universal challenges when building Production-Ready Software. And what I mean by "universal" is that it's not problems specific to TypeScript, I'm talking about problems you will likely have with other languages and other ecosystems. It just turns out that TypeScript is the best language out there right? Agree?
+As I said in the introduction, we all face some universal challenges when building Production-Ready Software. And what I mean by "universal" is that it's not problems specific to TypeScript, I'm talking about problems you will likely have with other languages and other ecosystems. 
+
+[INTERACTION] It just turns out that TypeScript is the best language out there right?
 
 Let's have a quick overview of some of these challenges:
 
-- Resilience
+So have Resilience, you need to have proper error management, including retries, interruptions, timeouts.
 
-You need to have proper error management, including retries, interruptions, timeouts.
+Then you need to integrate dependencies, composing them, testing, decoupling, dependency injection
 
-- Dependencies
+After what you also need Concurrency to maximize efficiency
 
-To integrate dependencies with need composition, testing, decoupling, dependency injection
+Also you need to have proper Resource management to not leak any resources
 
-- Concurrency
+Then super important you have Observability to have precise information about what happens in production
 
-Our application must maximize efficiency through a proper concurrency management that is not blowing up memory or CPUs.
+[TRANSITION] And these are the main ones we usually go through but there are many more
 
-- Resource management
+5) (1mn)
 
-We must not leak resources
+Facing these challenges is hard. But it is even more complex when you need to compose multiple solutions. For instance, we could have multiple independent solutions that tackle each
+one of these problems, but then you need to compose these solutions together, and you end up having a lot of glue and a lot of complexity, because APIs are not the same and are not necessarily meant to be packed together.
 
-- Observability
+And it's great! But fragmented, and costly to manage, no unified API. And I'm not even talking about the maintenance cost, the vulnerability surface, etc.
 
-Having precise information about what happens in production
+6) (1mn30)
 
-[TRANSITION] And many others, these are the main ones we usually go through.
+So now it's time to talk about Effect. Effect is a unified solution to face these challenges with TypeScript. Just a side note, if you don't face any of these problems I have been presenting you, then you're fine. Also, if you already have other solutions and they work for you, then all good. 
 
-5) (2mn)
+Nonetheless from my experience of building applications with TypeScript for the past decade and Effect for the past 3 years, I didn't see any solution that came even close to what Effect provides me within the TypeScript ecosystem with such amount of productivity.
 
-Facing these challenges is hard as solutions are sometimes complex. But it is even more complex when you need to compose all these solutions for the whole set of challenges. For instance, we could have multiple independent solutions that tackle each
-of these problems, but then you need to compose these solutions together, and you end up having a lot
-of glue and a lot of complexity, because APIs are not the same and are not necessarily meant to be packed together.
+An Effect is nothing but a data type that aims to represent some kind of Program.
 
-Let's see some of these solutions within the JavaScript ecosystem:
+That data type is generic and has 3 type parameters: `Effect<A, E, R>`
 
-- control flow: ts-results, neverthrow, p-retry
-- dependency injection: tsyringe, di, awilix, inversify
-- schema validation: zod, yup, joi
-- fp librairies: fp-ts, ramda
-- data structures: immer, immutable-js
+- The first one represents the success of the Program `Effect<Success>`. This is what we are used to.
+- The second one represents the set of failures that can be produced when executing that program: `Effect<Success, Failures>`
+- The last one stands for the requirements in order for that program to be run: `Effect<Success, Failures, Dependencies>`
 
-And it's great! But fragmented, and costly to manage, no unified API.
+7) (2mn) ✅
 
+Let's take a concrete example of a simple use case: creating a user.
 
-6) (3mn)
+As you can see we import Effect from the effect library.
 
-Effect is a unified solution to face these challenges with TypeScript. If you don't face any of these problems, then you're fine. Also, if you already have other solutions, then fine. 
+We can then describe our operation as an Effect that : 
+- if succeeding produces a CreatedUser
+- but that can fail for a reason, in that case if the User already exists
+- and that use case needs one dependency, which is a user repository, that might interact with some
+kind of database to persist these operations.
 
-Nonetheless from my experience of building applications with Effect for the past 3 years, I didn't see any solution that came even close to what Effect provides me within the TypeScript ecosystem with such productivity.
+And what's great with Effect is that we can encode a lot of information leveraging discriminated unions.
 
-So let's start with a bit of concrete showcase of what Effect is.
+For example there the create User might also fail for another reason which is related to organizations. And interacting with organizations also require another reference to a repository.
 
-Effect takes its root using a data type that aims to represent some kind of Program, or an Operation.
+And you will see how powerful these discriminated unions become just after. So you can basically accumulate information, not only coming from a single operation but also when chaining and nesting operations, because this is usually what happens in a real-world program.
 
-That data type is generic and has 3 parameters: `Effect<A, E, R>`
-
-And that program can either:
-- A: Succeed, with a type of A: `Effect<Success>`
-- E: Fail, for a given set of failures: `Effect<Success, Failures>`
-- R: Require, dependencies for that program to be run: `Effect<Success, Failures, Dependencies>`
-
-Let's take a concrete example of an operation of creating a user.
-
-```ts
-const createUser: Effect.Effect<CreatedUser, UserAlreadyExists, UserRepository> = //
-```
-
-And all these type parameters can leverage discriminated unions to encode multiple possibilities.
-
-```ts
-const createUser: Effect.Effect<CreatedUser, UserAlreadyExists | OrganizationNotFound, UserRepository | OrganizationRepository> = //
-```
 
 [TRANSITION]: So now that you know what an Effect is and what it represents, let's see how it helps face each of these challenges I've been presenting just before 
 
-7) (3mn)
+8) (3mn) Resilience: error management 
 
-Resilience
+The first challenge I want to talk about is Resilience: `Resilience is the art of designing and implementing systems which can react and recover from expected failures.`
 
-`Resilience is the art of designing and implementing systems which can react and recover from expected failures.`
-
-- Error management
+Let's focus on Error management first.
 
 With TypeScript we need to deal with two kind of errors, synchronous and asynchronous errors.
 
-Let's take for example a simple synchronous function that declares `generateRandomNumber(): number`, the problem we have is that we only encode the Success information. We have no clue if that function can fail or not. This is lacking from explicitness as you can end up having errors being thrown.
-
-So what we end up doing is trying to re-create some kind of type-level and runtime information that we lose during the process of throwing exceptions.
+Let's take for example a simple synchronous function that declares `generateRandomNumber(): number`, the problem we have is that we only encode the Success information. We have no clue about whether that function can fail or not. This is lacking from explicitness as you can end up having errors being thrown.
 
 Now if we take a look at asynchronous operations, we have same problem. Let's take for instance Promises, by default they are only meant to represent the success information.
 
-And even worse, the problem is that these errors lack of representation but also their behavior change and the API to manage errors change.
+The problem there is that we often end up using defensive programming and having try/catch statements just for safety, sometimes we don't do anything in these catch blocks.
 
+And even worse, the problem is that these errors lack of explicitness but also the behavior between synchronous and asynchronous change and the API to manage errors is not the same.
 
-Let's see how Effect solves this
+9) (1mn) Re-creating the lost information 
 
--> What if we wanted to encode errors in a type-safe and composable way?
+So what we end up doing is trying to re-create some kind of type-level and runtime information that we lose during the process of throwing exceptions.
 
-```
-class UserAlreadyExists {
-    readonly _tag = 'UserAlreadyExists'
-}
+So at some point we had it, but then we threw an exception and then we just go back into the dark world of any and unknown.
 
-```
+[TRANSITION] We love our dear TypeScript type-system so why not just having another way of dealing with errors
 
-And then on top of that you can have retries, interruptions, timeouts...
+10) (2mn) Error management with Effect
 
-Putting all together we can see what this becomes without Effect, and what it is with Effect
+What if I tell you that with Effect we can represent Errors as Values and deal with them as if they were part of the happy path
 
-8) Dependencies (3mn)
+Let's just consider two simple TypeScript classes, with a tag, that will act as the discriminating property there, both at type-level and runtime
+
+These classes can then be used together with Effect as part of the Failure channel.
+
+And finally, let's see how powerful it becomes to have these explicit errors: we can do PATTERN MATCHING!
+
+The best thing is that because the pattern matching was exhaustive, the compiler now knows that we managed all errors, so that our Effect can encode back that information: we have no error left that need to be handled right after!
+
+11) (1mn) Resilience: more than managing errors
+
+When it comes to resilience we also have other challenges, we need to have retries, with custom policies.
+
+Effect provides us a very powerful module which is called Schedule, that can be used to represent some kind of Schedule patterns that can be both used for Retries, but also for recurring tasks, such as Cron jobs.
+
+As you can see with one line of code we are able to retry an Effect with a very complex policy, that might have taken hundred lines of imperative code otherwise.
+
+You also have to deal with resource-safety, interruptions and timeouts, and Effect provides you 
+everything to deal with that.
+
+12) (2mn) Dependencies 
 
 When it comes to Production-Ready Software, most of the time you need to integrate dependencies, such as a repository that communicates with some kind of database. The goal is to reduce coupling to these dependencies: `Program to an interface, not an implementation` -> DIP
 
-Effect makes these dependencies super explicit by having the dedicated channel R for that information
+For now we saw two of the three type parameters. Effect makes these dependencies explicit by using the last type parameter.
 
-Decoupling using Dependency Inversion Principle
+Effect helps us achieving decoupling using Dependency Inversion Principle
 
--> Describing Dependencies in a type-safe way
-An Effect program can't run until all dependencies are satisfied
+We can refer to these dependencies through tags, that are linked to a dedicated interface, and we can rely on these services by yielding these tags that offer an access over the service contract
 
-1. Testing (dependency injection), DIP
+But as you can see, there is no concrete implementation there ; we just model an effect that needs a user repository matching the contract.
 
-2. Graphs of dependencies, type-safe and highly composable (showing graph of dependencies)
+13) (2mn) Dependencies : type-safe DI
 
-9) Concurrency (3mn)
+What's powerful with Effect is that we have type-safety around these dependencies, meaning that the compiler will complain if they are not injected.
 
-"Concurrency is about dealing with a lot of things at once" - Rob Pike, Go creator
+For instance there we are trying to run the `registerUser` use case but as I mentioned we didn't provide any implementation of the repository yet. This is clearly made explicit as the UserRepository is still there in the Effect data type.
 
-- Controlling the concurrency (bounded vs unbounded) 
+What we then need to do is to provide, or INJECT, a concrete implementation matching the contract to that Effect, satisfying all the requirements.
+ 
+Once we do that, the type argument becomes "never", and it the same way as for error, it means that we managed all dependencies.
 
-Promise.all() on its own does not over any way of controlling the concurrency
+-> An Effect program can't run until all dependencies are satisfied and we have strong type-safety around it.
 
-Effect.all offers way of concurrency + inheritance
+14) (1mn) Dependencies : testing
 
-Resource-safe concurrency
-
--> Prendre la slide https://antoine-coulon.github.io/effect-introduction-for-paris-typescript-meetup/19?clicks=2
-
-
-10) Resource Management (3mn)
-
-Even out of the scope of concurrency you still need to have proper Resource Management
-
-Promise.race comparison 
-Clean interruption
-Acquire/release semantics with strong guarantees
-
--> Structured Concurrency model, which links each operation to a parent and all
-
-11) Observability (2mn)
-
-Observability is a key element to have Production-Ready Software, as it helps you knowing what's going on in Production.
-
-You often need: Logging, Tracing, Metrics...
-
-Effect comes in with all that and has a built-in support for OpenTelemetry
-
--> logger
--> withSpan, composes a set of spans for tracing purposes, in case of failure or sucess everything is monitored
+And because we are leveraging the Dependency Inversion Principle, it now becomes super easy to inject whatever instance of the service that fakes the behavior for testing purposes.
 
 
-12) A wide ecosystem to cover even more challenges (2mn)
+15) (1mn) Concurrency 
 
-- Batching/Caching builtin
-- Streams builtin `effect/Streams`
-- Schema Validation (built-in, through `effect/Schema` module)
-- Configuration Management (built-in, through `effect/Config` module)
-- Data structures 
-- Statement Management
-- Scheduling (Cron module)
+Now let's talk about another challenge, Concurrency.
 
-13) (1mn)
+Concurrency is quite complex because there are so many things to get right.
 
-I just wanted to finish that talk by providing few disclaimers 
+Even though Node.js and the Event Loop model solve many concurrency issues and abstract them for us,
+we still have concurrency challenges.
 
-- Effect does not necessarily need to be an all: it's a toolkit, you only pick what you need
+We can still have race conditions, starvation, issues with shared resources, memory and cpu management...
+
+16) (2mn) Concurrency
+
+Let's take a simple example to showcase how poor control we have over concurrency when using Promises.
+
+There we use Promise.all that takes an iterable of Promises, that will be fired concurrently, so depending on the size of userIds array we might have thousands of Promises being fired up at the same time.
+
+This is what we call "Unbounded" concurrency meaning that there is no limit for that concurrent execution, we might end up using 100% CPU.
+
+Also, we don't have any interruption handling, if one of these Promises fail, the other ones keep running.
+
+Now with Effect, we can have exactly the same use case but with a better control over concurrent execution:
+
+- we can limit the number of concurrent operations
+- we can inherit from the concurrency config from the parent
+- we can opt-in for unbounded as well 
+
+And also, we have strong safety around interruptions and resource-safety if one of these operations fail unlike with Promises
+
+17) (2mn) Resource Management 
+
+Concurrency is directly linked to Resource Management, because most of the time we have Resource issues when dealing with concurrency, for instance what happens if what of the concurrent operation fails or needs to be interrupted.
+
+Promise.race is a great example of a leaking API. You might not know it, but the loser of the racer does not get interrupted. So there the `setTimeout` keeps running for 10s in background, even though the race result is already settled.
+
+Let's have a look of a way of interrupting async operations without Effect using the AbortController API, we need to create controller, forwarding the signal property, and correctly call the abort on each of these controllers to clear the timeout. 
+
+That's pretty cumbersome and verbose and above all, it's not safe as the signal does not offer guarantees of the operation to be cancelled ; you only notify an abort but it's up to the receiver of that signal to implement the interruption / teardown logic.
+
+Now let's see with effect, we also describe a race, but unlike the other version the loser gets directly interrupted by default.
+
+And we can attach some handler to react on that interruption, but by default all Effect and interruptible and we have strong guarantees offered by the Effect runtime that they will be interrupted.
+
+We have many APIs with Effect to model release logic, for instance there it looks alike the useEffect
+pattern where you return a teardown Effect, that will be called if background job gets interrupted.
+
+
+18) Resource Management (1mn)
+
+Beyond the simple scope of these examples, Effect provides a fully fledged model around resource-safety, that composes nicely and is built-in.
+
+19) Observability (2mn)
+
+The last challenge I want to go through is Observability. And some of you might have went deep into the rabbit hole of observability and suffered from it.
+
+Thing is, observability is a key element to have Production-Ready Software, so it's really sad that we can't fully leverage observability because it's too complex.
+
+What if I tell you that Effect comes in with all that and has a built-in support for OpenTelemetry
+
+We have a Logger, that has a high-level of flexibility
+
+We also have Tracing, for instance there the withSpan function, in case of failure or sucess everything is monitored and is correctly nested in a structured way
+
+
+20) (1mn) A wide ecosystem to cover even more challenges 
+
+The Effect ecosystem provides a lot of modules and features that go beyond the scope of that talk:
+
+caching, batching, streams, schema validation, data structures and many more...
+
+most of these modules are built-in into effect and composes nicely 
+
+21) (45s) Disclaimer
+
+And right after the slide you might think that it's too huge and I don't have all these problems.
+
+So it's time to provide a quick disclaimer: Effect does not necessarily need to be an all-in move: it's only a toolkit, you only pick what you need from it, and you just use it where you need to.
+
     -> tree-shakeable 
     -> micro module
     -> good promise/callback/sync interop
-    -> Effect is solving full-stack problems, usable on both frontend and backend ecosystems
+    -> usable both on frontend and backend environments, fully based on Web APIs
 
-14) (1mn)
+22) (1mn)
 
-And now you have the choice
+If you need to remember one thing from that talk is that Effect is meant to solve these hard problems
+without involving exponential complexity level. 
 
-Keep in mind, you will face these challenges, with or without Effect.
+You can solve all these problems without Effect, but you will likely end up with high level of complexity in your applications.
 
-Go the hard way, and I encourage that to really feel the pain
+23) (15s)
 
-Go the pragmatic way, using Effect (or equivalent = none yet)
-
-15) (15s)
-
-Thanks for listening!
+And that's it for me, thanks for listening!
 
 Discord
 effect-introduction
