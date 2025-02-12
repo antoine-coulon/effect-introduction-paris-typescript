@@ -44,9 +44,9 @@ class: "text-center"
     <h1><b>Antoine Coulon</b></h1>
     <div class="leading-8 mt-8 flex flex-col">
       <p class="mt-3">Freelance Lead Software Engineer</p>
-      <p class="mt-3">Author <b color="cyan">skott, effect-introduction</b></p>
-      <p class="mt-3">Advocate <b color="cyan">Effect</b></p>
-      <p class="mt-3">Contributor <b color="cyan">Rush.js, NodeSecure</b></p>
+      <p class="mt-3">Author <b color="orange">skott, effect-introduction</b></p>
+      <p class="mt-3">Advocate <b color="orange">Effect</b></p>
+      <p class="mt-3">Contributor <b color="orange">Rush.js, NodeSecure</b></p>
     </div>  
   </div>
   <div class="border-l border-gray-400 border-opacity-25 !all:leading-12 !all:list-none my-auto">
@@ -83,34 +83,42 @@ class: "text-center"
 
 > non-exhaustive
 
-- Resilience: error management, retries, interruptions, timeouts.
+- **Resilience**: error management, retries, interruptions, timeouts
 
-- Dependencies: composition, testing, decoupling, dependency injection
+- **Dependencies**: composition, testing, decoupling, dependency injection
 
-- Concurrency: efficiency, race conditions
+- **Concurrency**: efficiency, race conditions, starvation, atomics
 
-- Resource management: leaks
+- **Resource** management: resource-safety guarantees, leaks
 
-- Observability
+- **Observability**: tracing, logging, metrics
 
 ---
 
-## The JavaScript ecosystem: rich but fragmented
+## The JavaScript ecosystem: massive but fragmented
 
 <br>
 
-- control flow: ts-results, neverthrow, p-retry
-- dependency injection: tsyringe, di, awilix, inversify
-- schema validation: zod, yup, joi
-- fp librairies: fp-ts, ramda
-- data structures: immer, immutable-js
+> non-exhaustive
+
+- **Control flow**: ts-results, neverthrow, p-retry
+
+- **Dependency injection**: tsyringe, di, awilix, inversify
+
+- **Schema validation**: zod, yup, joi, arktype
+
+- **FP librairies**: fp-ts, ramda
+
+- **Data structures**: immer, immutable-js
 
 
 ---
 
 ## Introducing Effect: a unified solution to most of these challenges
 
-Effect is a generic data type representing a Program
+<br>
+
+> Effect is a generic data type representing a Program
 
 <div class="text-center">
 
@@ -122,15 +130,15 @@ Effect is a generic data type representing a Program
 
 <br>
 
-- A: Succeed, with a type of A: `Effect<Success>`
+- [A] Success `Effect<Success>`
 
-- E: Fail, for a given set of failures: `Effect<Success, Failures>`
+- [E] Failures `Effect<Success, Failures>`
 
-- R: Require, a set of dependencies to be run: `Effect<Success, Failures, Dependencies>`
+- [R] Requirements `Effect<Success, Failures, Dependencies>`
 
 ---
 
-## Effect describes a Program: success, failures, dependencies 
+## Effect is explicit: success, failures, dependencies 
 
 <br>
 
@@ -219,8 +227,6 @@ try {
 <div>
 
 ```ts
-// main.ts
-
 function isSomeErrorException(exception: unknown): exception is SomeError {
   return exception instanceof Error && exception.name === "SomeError";
 }
@@ -248,6 +254,8 @@ try {
 ---
 
 ## Resilience: **error management** with Effect
+
+> Introducing Error as Values
 
 ```ts {3-9|1,11-12|1,11-20|1,22} {lines:true}
 import { Effect, pipe } from "effect";
@@ -314,7 +322,7 @@ const programWithRetryPolicy = pipe(
 
 **Resource-safe interruptions and timeouts**
 
-<div v-click>
+<div>
 
 → An Effect is interruptible by default
 <br>
@@ -383,8 +391,8 @@ const registerUser: Effect.Effect<CreatedUser, UserAlreadyExistsError, UserRepos
 ## Dependencies: type-safe dependency injection
 
 
-```ts {9-11|3,6-7|13-18|21} {lines:true}
-import { Effect, pipe } from "effect";
+```ts {1,9-11|3,6-7|13-18|20-21} {lines:true}
+import { Effect, pipe } from "effect";
 
 const registerUser: Effect.Effect<
   CreatedUser,
@@ -444,19 +452,19 @@ test("Should blabla", async () => {
 
 - Difficult to achieve a deterministic execution model
 - Issues with shared resources and resource management
-- Deadlocks, race conditions
+- Deadlocks, race conditions, starvation
 - Memory and CPU control and efficiency
 
 <br>
 
-Node.js and the Event Loop model solve many concurrency issues... but some are still left
+→ Node.js and the Event Loop model solve many concurrency issues... but some are still left
 
 
 ---
 
 ## Concurrency: bounded vs unbounded
 
-<div class="grid grid-cols-2 gap-x-4 pt-5">
+<div class="grid grid-cols-2 gap-x-4 pt-1">
 
 <div v-click>
 
@@ -512,7 +520,7 @@ const retrieveAllUsers = pipe(
 
 ---
 
-## Resource Management
+## Resource Management: interruptions and errors support
 
 
 <div class="grid grid-cols-2 gap-x-4 pt-5">
@@ -584,24 +592,51 @@ const backgroundJob = Effect.async(() => {
 
 ---
 
-## Resource Management
+## Resource Management: modeling resource-safe flows
 
-- Proposal "Explicit Resource Management", mais généralisé et plus composable
-- Introduction de Scopes, dès lors qu'on a plus besoin des ressources, des finalizers sont appelés
-- Finalizers appelés dès lors qu'une interruption/erreur d'un Effect est produite
-- Contexte qui contrôle la propagation des scopes, on évite le "props drilling" des Abort Signals 
-- Libération Sync/Async, peut être elle-même rendue interruptible/non-interruptible
+<br>
+
+- Scopes offer handle with built-in acquisition and release logic with strong guarantees
+- Finalizers are guaranteed to be run in case of Interruptions or Errors
+- No props drilling, everything nicely composes
+
+<div v-click>
+
+```ts
+import { Effect, Console } from "effect"
+
+// Define how the resource is acquired
+const acquire = Effect.tryPromise({
+  try: () => getResource(),
+  catch: () => new Error("getMyResourceError")
+})
+
+// Define how the resource is released
+const release = (res: MyResource) => Effect.promise(() => res.close())
+
+// Define how the resource is used
+const use = (res: MyResource) => Console.log(`content is ${res.contents}`)
+
+//      ┌─── Effect<void, Error, never>
+//      ▼
+const program = Effect.acquireUseRelease(acquire, use, release)
+```
+
+</div>
+
 
 --- 
 
 ## Observability: built-in Logging, Tracing, Metrics
+
+> Built-in support for Logging, Tracing, Metrics
 
 <div class="grid grid-cols-2 gap-x-4 pt-5">
 
 <div>
 
 
-```ts
+```ts {15-18|all} {lines:true}
 const getTodo = (
   id: number
 ): Effect.Effect<
@@ -616,6 +651,9 @@ const getTodo = (
       schedule: Schedule.exponential(1000),
       times: 3
     }),
+    Effect.andThen(
+      Effect.log(`getTodo ${id}`)
+    ),
     Effect.withSpan("getTodo", { attributes: { id } })
   )
 ```
@@ -624,8 +662,7 @@ const getTodo = (
 
 <div>
 
-```ts
-
+```ts {all|3|6-10|all}
 const child = Effect.void.pipe(
   Effect.delay("100 millis"),
   Effect.withSpan("child")
@@ -638,9 +675,16 @@ const parent = Effect.gen(function* () {
 }).pipe(Effect.withSpan("parent"))
 ```
 
-```ts
-
-
+```ts {0|all}
+const program = task("client", 2, [
+  task("/api", 3, [
+    task("/authN", 4, [task("/authZ", 5)]),
+    task("/payment Gateway", 6, [
+      task("DB", 7),
+      task("Ext. Merchant", 8)
+    ]),
+  ])
+])
 ```
 
 
@@ -680,42 +724,36 @@ const parent = Effect.gen(function* () {
 
 ---
 
-## And now you have the choice...
+## Effect makes the hard things easy
 
-> Select your difficulty level: Either<HardMode, EasyMode>
+> A streamlined way of developing software with unified standard library and ecosystem
 
-<div class="grid grid-cols-2 gap-x-4 pt-5">
+<div class="mt-5">
 
-<div v-click>
-   😵‍💫 A fragmented ecosystem complexifying composability and maintenability
-</div>
-
-<div v-click>
-  🫵 A streamlined way of developing software with unified standard library and ecosystem
-  
-</div>
+  <img src="/complexity.png" />
 
 </div>
-
-<div v-after class="flex justify-center mt-5">
-   <img width="600" src="/hard-and-easy-mode-dark.png" alt="easy-mode" />
-</div>
-
-
-<style>
-  h2 {
-    color: #4c7fff;
-  }
-</style>
 
 ---
 
 ## Thanks for listening!
 
-If you're interested in Effect, feel 
+<div class="grid grid-cols-12 gap-x-4 pt-5 pr-10 pl-10">
 
-- discord
-- effect-introduction
+<div class="col-start-1 col-span-10 grid grid-cols-[3fr,2fr] mr-10">
+  <div class="pb-4">
+    <ul class="leading-8 mt-8 flex flex-col">
+    <li><b>Effect website</b>: <b color="cyan">https://effect.website</b></li>
+    <li><b>Effect introduction</b>: <b color="cyan">https://github.com/antoine-coulon/effect-introduction</b></li>
+    </ul>
+  </div>
 
+</div>
 
----
+<div class="pl-20 col-start-11 col-span-12">
+  <img src="/discord-qr.png" class="w-40 margin-0-auto" />
+  <img src="/effect.png" class="rounded-full w-40 margin-0-auto mt-4" />
+</div>
+
+</div>
+
