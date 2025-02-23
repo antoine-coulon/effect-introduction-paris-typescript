@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@iconify-json/ri": "^1.1.12",
-    "@slidev/cli": "^0.47.0",
+    "@slidev/cli": "^51.3.0",
     "@slidev/theme-apple-basic": "^0.20.0",
     "@slidev/theme-default": "latest",
     "@slidev/theme-seriph": "latest",
