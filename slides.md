@@ -87,9 +87,9 @@ class: "text-center"
 
 - **Dependencies**: composition, testing, decoupling, dependency injection
 
-- **Concurrency**: efficiency, race conditions, starvation, atomics
+- **Concurrency**: efficiency, race conditions, starvation, resource-safety
 
-- **Resource** management: resource-safety guarantees, leaks
+- **Resource management**: resource-safety guarantees, leaks
 
 - **Observability**: tracing, logging, metrics
 
@@ -118,7 +118,7 @@ class: "text-center"
 
 <br>
 
-> Effect is a generic data type representing a Program
+> The Effect generic data type is a description of a Program
 
 <div class="text-center">
 
@@ -130,17 +130,17 @@ class: "text-center"
 
 <br>
 
-- [A] Success `Effect<Success>`
+- [**A**] Success `Effect<Success>`
 
-- [E] Failures `Effect<Success, Failures>`
+- [**E**] Failures `Effect<Success, Failures>`
 
-- [R] Requirements `Effect<Success, Failures, Dependencies>`
+- [**R**] Requirements `Effect<Success, Failures, Dependencies>`
 
 ---
 
 ## Effect is explicit: success, failures, dependencies 
 
-<br>
+> An Effect is an explicit description of a Program
 
 ```ts
 import { Effect } from "effect";
@@ -148,16 +148,21 @@ import { Effect } from "effect";
 const createUser: Effect.Effect<CreatedUser, UserAlreadyExists, UserRepository> = //
 ```
 
-And all these type parameters can leverage discriminated unions to encode multiple possibilities.
+<div v-click class="pt-2">
+
+<p class="p-2 text-center">And all these type parameters can leverage discriminated unions to encode multiple possibilities.</p>
+
 
 ```ts
-const createUser: Effect.Effect<
-                    CreatedUser, 
-                    UserAlreadyExists | OrganizationNotFound, 
-                    UserRepository | OrganizationRepository
-                  > = //
+type Success = CreatedUser;
+type Failures = UserAlreadyExists | OrganizationNotFound;
+type Requirements = UserRepository | OrganizationRepository;
+
+const createUser: Effect.Effect<Success, Failures, Requirements> = //
 ```
 
+<p class="text-center pt-2">⚠️ Don't worry you don't need to type all that, everything is inferred</p>
+</div>
 
 ---
 
@@ -167,7 +172,7 @@ const createUser: Effect.Effect<
 
 > Resilience is the art of designing and implementing systems which can react and recover from expected failures.
 
-<div class="grid grid-cols-2 gap-x-4 pt-5">
+<div class="grid grid-cols-2 gap-x-4 pt-2">
 
 <div>
 
@@ -214,7 +219,7 @@ try {
 </div>
 
 <div class="text-center mt-5" v-click>
-<b>→ End up using defensive programming "just in case"</b>
+<b>→ End up using defensive programming: just in case ™</b>
 <br>
 <b>→ Same explicitness problem and different APIs</b>
 </div>
@@ -257,7 +262,7 @@ try {
 
 ## Resilience: error management with Effect
 
-> Introducing Error as Values
+> Introducing Errors as Values
 
 ```ts {3-9|1,11-12|1,11-20|1,22} {lines:true}
 import { Effect, pipe } from "effect";
@@ -453,15 +458,25 @@ test("Should blabla", async () => {
 
 <br>
 
-- Difficult to achieve a deterministic execution model
-- Issues with shared resources and resource management
-- Deadlocks, race conditions, starvation
-- Memory and CPU control and efficiency
+- Avoiding starvation, deadlocks, resource leaks, race conditions 
+- Offering resource-safety through cancellation with proper finalization mechanisms
+- Dealing with error management and propagation
+- Providing efficient concurrency (CPU + Memory)
+- APIs gaps between concurrent and non-concurrent code 
 
 <br>
 
-→ Node.js and the Event Loop model solve many concurrency issues... but some are still left
+<div class="grid grid-cols-[3fr_2fr] gap-x-4 pt-1" v-click>
+    
+  <div class="pt-15">
+    <b>⚠️ The Event-Loop solve many concurrency issues... but not all</b>
+  </div>
 
+  <div class="flex justify-center">
+    <img src="/Libuv.png" width="200" />
+  </div>
+
+</div>
 
 ---
 
@@ -603,6 +618,21 @@ const backgroundJob = Effect.async(() => {
 - Finalizers are guaranteed to be run in case of Interruptions or Errors
 - No props drilling, everything nicely composes
 - Interruptions are guaranteed to be propagated, following Structured Concurrency model
+
+<div class="pt-2 text-center">
+
+<p color="orange"> Structured Concurrency also allows resource-safety </p>
+
+```mermaid {scale: 0.8}
+graph LR
+
+A[Runtime] -->|Manages| B[Root Task]
+B[Root Task] -->|forks| C[Child Task A]
+B[Root Task] -->|forks| D[Child Task B]
+C -->|forks| E[Child Task C]
+```
+</div>
+
 
 
 --- 
