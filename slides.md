@@ -715,7 +715,7 @@ const program = task("client", 2, [
 
 ---
 
-## Thanks for listening!
+## Thanks for listening
 
 <div class="grid grid-cols-12 gap-x-4 pt-5 pr-10 pl-10">
 
