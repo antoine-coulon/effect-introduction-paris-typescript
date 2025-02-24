@@ -300,7 +300,7 @@ type Main = Effect.Effect<number, never, never>;
 
 **Retrying**
 
-```ts
+```ts {all|1-13,17|all}
 import { Effect, pipe, Schedule, Duration } from "effect";
 
 const schedulePolicy = pipe(
@@ -346,7 +346,9 @@ const task = Effect.gen(function* () {
   return "Result";
 });
 
-const timedEffect = task.pipe(Effect.timeout("1 second"));
+const timedEffect = task.pipe(
+  Effect.timeout("1 second")
+);
 ```
 </div>
 
