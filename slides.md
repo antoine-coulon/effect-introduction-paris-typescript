@@ -46,7 +46,7 @@ class: "text-center"
       <p class="mt-3">Freelance Lead Software Engineer</p>
       <p class="mt-3">Author <b color="orange">skott, effect-introduction</b></p>
       <p class="mt-3">Advocate <b color="orange">Effect</b></p>
-      <p class="mt-3">Contributor <b color="orange">Rush.js, NodeSecure</b></p>
+      <p class="mt-3">Contributor <b color="orange">NodeSecure</b></p>
     </div>  
   </div>
   <div class="border-l border-gray-400 border-opacity-25 !all:leading-12 !all:list-none my-auto">
@@ -480,7 +480,7 @@ test("Should blabla", async () => {
 
 ---
 
-## Concurrency: bounded vs unbounded
+## Concurrency: Promises are lacking important features
 
 <div class="grid grid-cols-2 gap-x-4 pt-1">
 
@@ -517,16 +517,16 @@ const userIds = Array.from(
   { length: 1000 }, (_, idx) => idx
 );
 
-// 
 const retrieveAllUsers = pipe( 
   userIds,
+  // SEQUENTIAL (default)
   Effect.forEach(
     (id) => Effect.promise(() => fetchUser(id)), 
-    // BOUNDED
+    // BOUNDED CONCURRENCY
     { concurrency: 30 },
-    // OR UNBOUNDED
+    // OR UNBOUNDED CONCURRENCY
     { concurrency: "unbounded" },
-    // OR INHERITED
+    // OR INHERITED CONCURRENCY
     { concurrency: "inherit" }
   )
 );
@@ -545,29 +545,30 @@ const retrieveAllUsers = pipe(
 
 <div>
 
-```ts
+```ts {1-5|7-24}
 import { setTimeout } from "node:timers/promises";
 
 const leakingRace = () => Promise.race([
-  setTimeout(1000), 
-  setTimeout(10000)
+  setTimeout(1_000), setTimeout(5_000)
 ]);
 
-function raceWithInterruptions() {
-  const abortController1 = new AbortController();
-  const abortController2 = new AbortController();
+const raceWithInterruptions = () => {
+  const a1 = new AbortController();
+  const a2 = new AbortController();
 
   async function cancellableTimeout1() {
-    await setTimeout(1000, undefined, { signal: abortController1.signal });
-    abortController2.abort();
+    await setTimeout(1_000, void 0, { signal: a1.signal });
+    a2.abort();
   }
 
   async function cancellableTimeout2() {
-    await setTimeout(10000, undefined, { signal: abortController2.signal });
-    abortController1.abort();
+    await setTimeout(5_000, void 0, { signal: a2.signal });
+    a1.abort();
   }
 
-  return Promise.race([cancellableTimeout1(), cancellableTimeout2()]);
+  return Promise.race([
+    cancellableTimeout1(), cancellableTimeout2()
+  ]);
 }
 ```
 </div>
@@ -585,8 +586,7 @@ const race = Effect.raceAll([
 ]);
 ```
 
-<br>
-
+**And many ways of describing finalizers**
 
 ```ts
 // React useEffect-like release function
@@ -646,56 +646,38 @@ C -->|forks| E[Child Task C]
 <div>
 
 
-```ts {15-18|all} {lines:true}
-const getTodo = (
-  id: number
-): Effect.Effect<
-  unknown,
-  HttpClientError | TimeoutException
-> =>
-  httpClient.get(`/todos/${id}`).pipe(
-    Effect.andThen((response) => response.json),
-    Effect.andThen(S.decode(Todo)),
-    Effect.timeout("1 second"),
-    Effect.retry({
-      schedule: Schedule.exponential(1000),
-      times: 3
-    }),
-    Effect.andThen(
-      Effect.log(`getTodo ${id}`)
-    ),
-    Effect.withSpan("getTodo", { attributes: { id } })
-  )
+```ts {all} 
+import { Metric, Effect } from "effect"
+
+const requestCount = Metric.counter("request_count", {
+  description: "A counter for tracking requests"
+})
 ```
 
-</div>
+```ts {4|6,15|all}
+import { Effect } from "effect"
 
-<div>
-
-```ts {all|3|6-10|all}
-const child = Effect.void.pipe(
+const child = pipe(  
+  Effect.log("Something to log"),
   Effect.delay("100 millis"),
   Effect.withSpan("child")
 )
 
-const parent = Effect.gen(function* () {
-  yield* Effect.sleep("20 millis")
-  yield* child
-  yield* Effect.sleep("10 millis")
-}).pipe(Effect.withSpan("parent"))
+const parent = pipe(
+  Effect.gen(function* () {
+    yield* Effect.sleep("20 millis")
+    yield* child
+    yield* Effect.sleep("10 millis")
+  }),
+  Effect.withSpan("parent"),
+)
 ```
 
-```ts {0|all}
-const program = task("client", 2, [
-  task("/api", 3, [
-    task("/authN", 4, [task("/authZ", 5)]),
-    task("/payment Gateway", 6, [
-      task("DB", 7),
-      task("Ext. Merchant", 8)
-    ]),
-  ])
-])
-```
+</div>
+
+<div class="pt-1">
+
+<img src="/flamegraph.svg" />
 
 
 </div>
@@ -724,13 +706,15 @@ const program = task("client", 2, [
 
 <div>
   <ul>
-      <li v-click>It's a toolkit, you only pick what you need</li>
-      <li v-click>tree-shakeable</li>
-      <li v-click>micro module: lightweight subset of effect</li>
-      <li v-click>good promise/callback/sync interop</li>
+      <li >It's a toolkit, you only pick what you need</li>
+      <li >You don't need to use it everywhere: good promise/callback/sync interop</li>
+      <li >Tree-shaking support</li>
   </ul>
 </div>
 
+<div class="flex justify-center">
+  <video src="/discovery.mov" autoplay loop width="400"/>
+</div>
 ---
 
 ## Effect makes the hard things easy
@@ -747,19 +731,16 @@ const program = task("client", 2, [
 
 ## Thanks for listening
 
-<div class="grid grid-cols-12 gap-x-4 pt-5 pr-10 pl-10">
+<div class="grid grid-cols-[6fr_2fr] gap-x-2 pt-5">
 
-<div class="col-start-1 col-span-10 grid grid-cols-[3fr,2fr] mr-10">
-  <div class="pb-4">
+<div class="mr-10">
     <ul class="leading-8 mt-8 flex flex-col">
     <li><b>Effect website</b>: <b color="cyan">https://effect.website</b></li>
     <li><b>Effect introduction</b>: <b color="cyan">https://github.com/antoine-coulon/effect-introduction</b></li>
     </ul>
-  </div>
-
 </div>
 
-<div class="pl-20 col-start-11 col-span-12">
+<div class="pl-20">
   <img src="/discord-qr.png" class="w-40 margin-0-auto" />
   <img src="/effect.png" class="rounded-full w-40 margin-0-auto mt-4" />
 </div>
