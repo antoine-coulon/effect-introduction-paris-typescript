@@ -94,6 +94,16 @@ class: "text-center"
 
 - **Observability**: tracing, logging, metrics
 
+<!-- 
+
+**universal** -> not specifically bound to TypeScript </br>
+
+-> problems existing in other languages and other ecosystems
+
+-> will go through each of these challenges
+
+-->
+
 ---
 
 ## The JavaScript ecosystem: massive but fragmented
@@ -111,6 +121,22 @@ class: "text-center"
 - **FP librairies**: fp-ts, ramda
 
 - **Data structures**: immer, immutable-js
+
+<!-- 
+
+Start 3:00
+
+**wide** ecosystem but a lot of independent solutions 
+
+-> problems existing in other languages and other ecosystems
+
+-> Most of these solution are independent and were not always meant to be composed together in the first place so you end up having a lot of glue and a lot of complexity to make them work together
+
+-> good solutions but it really comes at a cost at some point and I'm not even talking about maintenance cost.
+
+End 4:00
+
+-->
 
 
 ---
@@ -136,6 +162,18 @@ class: "text-center"
 - [**E**] Failures `Effect<Success, Failures>`
 
 - [**R**] Requirements `Effect<Success, Failures, Dependencies>`
+
+<!-- 
+
+START : 4:00
+
+-> Unified challenge to address these challenges
+
+-> Main component of the library is an Effect
+
+END : 5:30
+
+-->
 
 ---
 
@@ -164,6 +202,20 @@ const createUser: Effect.Effect<Success, Failures, Requirements> = //
 
 <p class="text-center pt-2">⚠️ Don't worry you don't need to type all that, everything is inferred</p>
 </div>
+
+<!-- 
+
+START : 5:30
+
+-> We can encode and make explicit a lot of information at type-level that can be super powerful
+
+-> Leveraging Discriminated Unions to accumulate information
+
+-> Everything is deeply inferred
+
+END : 7:30
+
+-->
 
 ---
 
@@ -226,6 +278,18 @@ try {
 </div>
 
 
+<!-- 
+
+START : 7:30
+
+-> We need to deal with Synchronous and Asynchronous error handling
+
+-> Both are untyped and have differences on the APIs
+
+END : 9:30
+
+-->
+
 ---
 
 ## Resilience: error management
@@ -259,6 +323,18 @@ try {
 
 </div>
 
+<!-- 
+
+START : 9:30
+
+-> Because they are untyped, we can to re-compose information lost in the process
+
+-> What if we tried to used Errors in a different way instead?
+
+END : 10:30
+
+-->
+
 ---
 
 ## Resilience: error management with Effect
@@ -289,6 +365,18 @@ const main = pipe(
 
 type Main = Effect.Effect<number, never, never>;
 ```
+
+<!-- 
+
+START : 10:30
+
+-> Errors as Values, using TypeScript classes with discriminators
+
+-> What if we tried to used Errors in a different way instead?
+
+END : 12:30
+
+-->
 
 ---
 
@@ -358,6 +446,20 @@ const timedEffect = task.pipe(
 
 </div>
 
+<!-- 
+
+START : 12:30
+
+-> Resilience involes many other topics, we need to have retrying mechanisms, timeouts, clean interruptions
+
+-> Schedule is a very powerful data type that can be used to define policies
+
+-> Clean interruptions, timeouts
+
+END : 13:30
+
+-->
+
 
 ---
 
@@ -396,6 +498,20 @@ const registerUser: Effect.Effect<CreatedUser, UserAlreadyExistsError, UserRepos
 ```
 </div>
 
+<!-- 
+
+START : 13:30
+
+-> Need to integrate dependencies
+
+-> Effect makes theses dependencies explicit, by appearing as a CONTRACT : DIP
+
+-> We can access these services through tags and using these tags propagate back the R data type
+
+END : 15:30
+
+-->
+
 ---
 
 ## Dependencies: type-safe dependency injection
@@ -426,6 +542,20 @@ const registerUserWithSatisfiedDependencies: Effect<CreatedUser, UserAlreadyExis
 Effect.runSync(registerUserWithSatisfiedDependencies);
 ```
 
+<!-- 
+
+START : 15:30
+
+-> type-safety around dependencxies: no injected = typescript complaining
+
+-> now we need to process DI by providing an implementation matching contract
+
+-> BACK to "never"
+
+END : 17:30
+
+-->
+
 ---
 
 ## Dependencies: seemless testing
@@ -451,6 +581,16 @@ test("Should blabla", async () => {
   expect(user).toEqual("whatever");
 });
 ```
+
+<!-- 
+
+START : 17:30
+
+-> easy testing thanks to DIP
+
+END : 18:30
+
+-->
 
 ---
 
@@ -480,6 +620,18 @@ test("Should blabla", async () => {
   </div>
 
 </div>
+
+<!-- 
+
+START : 18:30
+
+-> concurrency challenge: REALLY hard to get right because there are so many things to deal with
+
+-> Event-Loop model already provides good abstractions, but some are still left to us
+
+END : 19:30
+
+-->
 
 ---
 
@@ -538,6 +690,18 @@ const retrieveAllUsers = pipe(
 </div>
 
 </div>
+
+<!-- 
+
+START : 19:30
+
+-> Poor control over concurrency with Promise = "UNBOUNDED" and NOT resource safe 
+
+-> With Effect, good control over execution, whether concurrent or not
+
+END : 22:00
+
+-->
 
 ---
 
@@ -611,6 +775,18 @@ const backgroundJob = Effect.async(() => {
 
 </div>
 
+<!-- 
+
+START : 22:00
+
+-> Yet another example of Resource Management issues with Promise : Promise.race
+
+-> Effect is resource-safe : Interruptions + lot of ways to model finalizers running on interruptions
+
+END : 24:30
+
+-->
+
 ---
 
 ## Resource Management: modeling resource-safe flows
@@ -636,7 +812,15 @@ C -->|forks| E[Child Task C]
 ```
 </div>
 
+<!-- 
 
+START : 24:30
+
+-> Fully fledged model around resource-safety = Structured concurrency : hierarchy way of managing tasks in a way ensuring correct propagation of interruption
+
+END : 25:30
+
+-->
 
 ---
 
@@ -682,10 +866,28 @@ const parent = pipe(
 
 <img src="/flamegraph.svg" />
 
+<div class="text-center pt-5">
+  ✅ Works out of the box with OpenTelemetry
+</div>
+
 
 </div>
 
 </div>
+
+
+<!-- 
+
+START : 25:30
+
+-> Last challenge: Observability, complex to get right: lot of verbosity and cost to add that to codebase
+
+-> Effect builtin logger, metrics, tracing, support for OpenTelemetry
+
+END : 27:00
+
+-->
+
 ---
 
 ## Effect offers a wide but unified and composable ecosystem
@@ -700,6 +902,16 @@ const parent = pipe(
 - State Management, built-in `effect/Ref` module
 - Scheduling, cron-like built-in module, `effect/Cron` module
 - many more, via `effect/*` modules
+
+<!-- 
+
+START : 27:00
+
+-> lot of challenges left but Effect most likely has a solution for you
+
+END : 27:45
+
+-->
 
 ---
 
@@ -718,6 +930,17 @@ const parent = pipe(
 <div class="flex justify-center">
   <video src="/discovery.mov" autoplay loop width="400"/>
 </div>
+
+<!-- 
+
+START : 27:45
+
+-> Use only what's needed, Effect works for small to wide adoption
+
+END : 28:30
+
+-->
+
 ---
 
 ## Effect makes the hard things easy
@@ -729,6 +952,19 @@ const parent = pipe(
   <img src="/complexity.png" />
 
 </div>
+
+<!-- 
+
+START : 28:30
+
+-> Remember one thing from the talk: effect is meant to solve these hard problems without 
+involving the usual complexity.
+
+-> Can be solved without Effect (still doing it now), but a lot more painful
+
+END : 29:15
+
+-->
 
 ---
 
